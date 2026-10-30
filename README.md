@@ -37,7 +37,8 @@ SECONDS_PER_TEST=60 bash diskspeed.sh
 ```
 
 The fsync test remains at 20 seconds. Colours are enabled in terminals;
-set `NO_COLOR=1` to disable them. Output is in English, with a decimal point
+set `NO_COLOR=1` to disable them. Output uses English ASCII text and separate progress lines for compatibility with
+serial consoles. Numbers use a decimal point
 and commas as thousands separators (for example, `1,315 MB/s` and `0.391 ms`).
 
 ## Ratings and limitations

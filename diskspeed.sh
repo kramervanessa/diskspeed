@@ -90,8 +90,8 @@ if [[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
   export DISKSPEED_COLOR=1
 fi
 
-printf 'Quick disk benchmark · %s\nTarget: %s\n' "$(hostname)" "$target"
-printf '8 GiB test file · 6 tests of %s s (+ 3 s warm-up each) · additional 20 s fsync test\n' "$duration"
+printf 'Quick disk benchmark | %s\nTarget: %s\n' "$(hostname)" "$target"
+printf '8 GiB test file | 6 tests of %s s (+ 3 s warm-up each) | additional 20 s fsync test\n' "$duration"
 
 run_fio() {
   local name=$1 mode=$2 block=$3 depth=$4
@@ -114,20 +114,20 @@ run_fio() {
   fi
 }
 
-printf 'Preparing …\n'
+printf 'Preparing ...\n'
 run_fio prepare write 1M 16 --end_fsync=1
 for spec in 'seqread read 1M 16' 'seqwrite write 1M 16' \
             'read1 randread 4k 1' 'write1 randwrite 4k 1' \
             'read32 randread 4k 32' 'write32 randwrite 4k 32'; do
   read -r name mode block depth <<< "$spec"
-  printf '  %-9s …\r' "$name"
+  printf '  Running %-9s ...\n' "$name"
   run_fio "$name" "$mode" "$block" "$depth" \
     --runtime="$duration" --time_based --ramp_time=3 --bwavgtime=1000
 done
-printf '  fsync     …\r'
+printf '  Running fsync     ...\n'
 run_fio fsync write 4k 1 --fsync=1 --end_fsync=1 \
   --runtime=20 --time_based --ramp_time=3 --bwavgtime=1000
-printf '                     \r'
+printf '\n'
 
 python3 - "$testdir" <<'PY'
 import json
@@ -167,7 +167,7 @@ def row(label, value, display, bad, good, lower=False):
     text = f'{label:<29} {display:>15}  {rating}'
     print((f'\033[{[31, 33, 32][level]}m{text}\033[0m') if color else text)
 
-print('\nResults – general guidelines for SSD and cloud VM storage\n')
+print('\nResults - general guidelines for SSD and cloud VM storage\n')
 for name, direction, label in [('seqread', 'read', 'Sequential read (QD16)'),
                                 ('seqwrite', 'write', 'Sequential write (QD16)')]:
     stats = load(name, direction)
@@ -181,10 +181,10 @@ for direction, label in [('read', 'Read'), ('write', 'Write')]:
     mean, p99 = latency(stats), latency(stats, True)
     row(label + ' mean latency (QD1)', mean, f'{number(mean, 3)} ms', 2, 0.5, True)
     row(label + ' P99 latency (QD1)', p99, f'{number(p99, 3)} ms', 10, 2, True)
-print('\nGreen/GOOD: ≥1,000 MB/s, ≥50,000 IOPS, mean ≤0.5 ms, P99 ≤2 ms.')
+print('\nGreen/GOOD: >=1,000 MB/s, >=50,000 IOPS, mean <=0.5 ms, P99 <=2 ms.')
 print('Red/POOR: <200 MB/s, <10,000 IOPS, mean >2 ms, P99 >10 ms.')
 print('Yellow/FAIR in between. No overall score; requirements vary.')
-print('\nDurable writes – 4K sequential, QD1, fsync after every write:')
+print('\nDurable writes - 4K sequential, QD1, fsync after every write:')
 write = load('fsync', 'write')
 sync = load('fsync', 'sync')
 if sync.get('total_ios', 0) <= 0 or write.get('runtime', 0) <= 0:
@@ -194,7 +194,7 @@ mean, p99 = latency(sync), latency(sync, True)
 row('Write + fsync per second', cycles, number(cycles), 100, 1000)
 row('fsync mean latency', mean, f'{number(mean, 3)} ms', 10, 1, True)
 row('fsync P99 latency', p99, f'{number(p99, 3)} ms', 50, 5, True)
-print('fsync guidelines, green: ≥1,000/s, mean ≤1 ms, P99 ≤5 ms;')
+print('fsync guidelines, green: >=1,000/s, mean <=1 ms, P99 <=5 ms;')
 print('red: <100/s, mean >10 ms, P99 >50 ms; yellow in between.')
 print('Rate counts completed write+fsync cycles; latencies cover fsync only.')
 print('Measures synchronous writes, not overall database performance.')
@@ -212,16 +212,16 @@ for name, direction, label in [
     average = stats.get('bw_mean', 0)
     samples = stats.get('bw_samples', 0)
     if average <= 0 or samples < 5:
-        print(f'{label:<29} UNAVAILABLE – insufficient samples')
+        print(f'{label:<29} UNAVAILABLE - insufficient samples')
         continue
     variation = 100 * stats['bw_dev'] / average
     minimum = 100 * stats['bw_min'] / average
     level = 0 if variation > 25 or minimum < 50 else (2 if variation <= 10 and minimum >= 80 else 1)
     rating = ['UNCERTAIN', 'VARIABLE', 'STABLE'][level]
     text = (f'{label:<29} {rating:<11} '
-            f'Variation {number(variation, 1)}% · Minimum {number(minimum, 0)}% of mean')
+            f'Variation {number(variation, 1)}% | Minimum {number(minimum, 0)}% of mean')
     print(f'\033[{[31, 33, 32][level]}m{text}\033[0m' if color else text)
-print('Green: variation ≤10% and minimum ≥80% of mean.')
+print('Green: variation <=10% and minimum >=80% of mean.')
 print('Red/uncertain: variation >25% or minimum <50%; otherwise yellow.')
 print('Variation = standard deviation / mean. Guidelines, not guarantees.')
 print('Repeat UNCERTAIN tests. P99 describes the slower end of individual requests.')
