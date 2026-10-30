@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Fehlende Abhängigkeiten werden unter Ubuntu/Debian und Fedora automatisch installiert.
-# Aufruf: ./diskspeed.sh [Zielordner]
+# Missing dependencies are installed automatically on Ubuntu/Debian and Fedora.
+# Usage: ./diskspeed.sh [target-directory]
 # Optional: SECONDS_PER_TEST=60 ./diskspeed.sh /mnt/data
 set -Eeuo pipefail
 
 target=${1:-.}
 duration=${SECONDS_PER_TEST:-30}
 if [[ ! $duration =~ ^[0-9]+$ ]] || (( duration < 5 || duration > 600 )); then
-  echo 'SECONDS_PER_TEST muss zwischen 5 und 600 liegen.' >&2
+  echo 'SECONDS_PER_TEST must be between 5 and 600.' >&2
   exit 1
 fi
-# Paketnamen sind für Fedora und Ubuntu/Debian identisch.
+# Package names are the same on Fedora and Ubuntu/Debian.
 packages=()
 command -v fio >/dev/null 2>&1 || packages+=(fio)
 command -v python3 >/dev/null 2>&1 || packages+=(python3)
@@ -28,18 +28,18 @@ if (( ${#packages[@]} > 0 )); then
   elif command -v apt-get >/dev/null 2>&1; then
     manager=apt-get
   else
-    printf 'Automatische Installation benötigt dnf (Fedora) oder apt-get (Ubuntu/Debian).\nFehlende Pakete: %s\n' "${packages[*]}" >&2
+    printf 'Automatic installation requires dnf (Fedora) or apt-get (Ubuntu/Debian).\nMissing packages: %s\n' "${packages[*]}" >&2
     exit 1
   fi
   privilege=()
   if (( EUID != 0 )); then
     if ! command -v sudo >/dev/null 2>&1; then
-      echo 'Zur Installation bitte dieses Skript als root starten oder sudo installieren.' >&2
+      echo 'To install dependencies, run this script as root or install sudo.' >&2
       exit 1
     fi
     privilege=(sudo)
   fi
-  printf 'Installiere fehlende Pakete über %s: %s\n' "$manager" "${packages[*]}"
+  printf 'Installing missing packages using %s: %s\n' "$manager" "${packages[*]}"
   if [[ $manager == apt-get ]]; then
     "${privilege[@]}" apt-get update
     "${privilege[@]}" apt-get install -y "${packages[@]}"
@@ -50,22 +50,22 @@ if (( ${#packages[@]} > 0 )); then
 fi
 for tool in fio python3 mktemp df awk hostname tail rm; do
   if ! command -v "$tool" >/dev/null 2>&1; then
-    printf 'Erforderliches Programm fehlt nach der Installation: %s\n' "$tool" >&2
+    printf 'Required program still missing after installation: %s\n' "$tool" >&2
     exit 1
   fi
 done
 if [[ $(fio --version) != fio-* ]]; then
-  echo 'Das installierte fio ist nicht der Flexible I/O Tester.' >&2
+  echo 'The installed fio is not the Flexible I/O Tester.' >&2
   exit 1
 fi
 if [[ ! -d $target || ! -w $target ]]; then
-  echo "Zielordner fehlt oder ist nicht beschreibbar: $target" >&2
+  echo "Target directory does not exist or is not writable: $target" >&2
   exit 1
 fi
 target=$(cd -- "$target" && pwd -P)
 available=$(df -Pk -- "$target" | awk 'END {print $4}')
 if [[ ! $available =~ ^[0-9]+$ ]] || (( available < 9437184 )); then
-  echo 'Mindestens 9 GiB freier Platz erforderlich.' >&2
+  echo 'At least 9 GiB of free space is required.' >&2
   exit 1
 fi
 
@@ -74,9 +74,9 @@ cleanup() {
   local result=$?
   trap - EXIT
   if rm -rf -- "$testdir"; then
-    printf '\nTestdateien bereinigt.\n'
+    printf '\nTest files removed.\n'
   else
-    printf '\nBereinigung fehlgeschlagen: %s\n' "$testdir" >&2
+    printf '\nCleanup failed: %s\n' "$testdir" >&2
     result=1
   fi
   exit "$result"
@@ -90,8 +90,8 @@ if [[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
   export DISKSPEED_COLOR=1
 fi
 
-printf 'Disk-Kurztest · %s\nZiel: %s\n' "$(hostname)" "$target"
-printf '8 GiB Testdatei · 6 Tests à %s s (+ je 3 s Aufwärmen) · zusätzlich 20 s fsync-Test\n' "$duration"
+printf 'Quick disk benchmark · %s\nTarget: %s\n' "$(hostname)" "$target"
+printf '8 GiB test file · 6 tests of %s s (+ 3 s warm-up each) · additional 20 s fsync test\n' "$duration"
 
 run_fio() {
   local name=$1 mode=$2 block=$3 depth=$4
@@ -107,14 +107,14 @@ run_fio() {
       --group_reporting --lat_percentiles=1 --percentile_list=99 \
       --output-format=json --output="$testdir/$name.json" "$@" \
       >"$testdir/error.log" 2>&1; then
-    printf '\nTest fehlgeschlagen (%s):\n' "$name" >&2
+    printf '\nTest failed (%s):\n' "$name" >&2
     tail -n 12 "$testdir/error.log" >&2
     [[ ! -s $testdir/$name.json ]] || tail -n 12 "$testdir/$name.json" >&2
     exit 1
   fi
 }
 
-printf 'Vorbereitung …\n'
+printf 'Preparing …\n'
 run_fio prepare write 1M 16 --end_fsync=1
 for spec in 'seqread read 1M 16' 'seqwrite write 1M 16' \
             'read1 randread 4k 1' 'write1 randwrite 4k 1' \
@@ -142,7 +142,7 @@ def load(name, direction):
     obj = json.loads((root / (name + '.json')).read_text())
     jobs = obj['jobs']
     if any(job.get('error', 0) for job in jobs):
-        raise SystemExit('fio meldet einen Fehler: ' + name)
+        raise SystemExit('fio reported an error: ' + name)
     return jobs[0][direction]
 
 def latency(stats, percentile=False):
@@ -153,79 +153,79 @@ def latency(stats, percentile=False):
                          key=lambda item: abs(float(item[0]) - 99))[1]
                      if percentile else record['mean'])
             return value / divisor
-    raise SystemExit('Unbekanntes fio-Latenzformat.')
+    raise SystemExit('Unknown fio latency format.')
 
 def number(value, decimals=0):
-    return f'{value:,.{decimals}f}'.replace(',', '_').replace('.', ',').replace('_', '.')
+    return f'{value:,.{decimals}f}'
 
 def row(label, value, display, bad, good, lower=False):
     if lower:
         level = 2 if value <= good else 0 if value > bad else 1
     else:
         level = 2 if value >= good else 0 if value < bad else 1
-    rating = ['SCHLECHT', 'MITTEL', 'GUT'][level]
+    rating = ['POOR', 'FAIR', 'GOOD'][level]
     text = f'{label:<29} {display:>15}  {rating}'
     print((f'\033[{[31, 33, 32][level]}m{text}\033[0m') if color else text)
 
-print('\nErgebnis – grobe Orientierung für SSD-/Cloud-VM-Speicher\n')
-for name, direction, label in [('seqread', 'read', 'Lesen sequenziell (QD16)'),
-                                ('seqwrite', 'write', 'Schreiben sequenziell (QD16)')]:
+print('\nResults – general guidelines for SSD and cloud VM storage\n')
+for name, direction, label in [('seqread', 'read', 'Sequential read (QD16)'),
+                                ('seqwrite', 'write', 'Sequential write (QD16)')]:
     stats = load(name, direction)
     speed = stats['bw_bytes'] / 1e6
     row(label, speed, f'{number(speed)} MB/s', 200, 1000)
-for direction, label in [('read', 'Lesen'), ('write', 'Schreiben')]:
+for direction, label in [('read', 'Read'), ('write', 'Write')]:
     stats = load(direction + '32', direction)
     iops = stats['iops']
     row(label + ' 4K IOPS (QD32)', iops, number(iops), 10000, 50000)
     stats = load(direction + '1', direction)
     mean, p99 = latency(stats), latency(stats, True)
-    row(label + ' Latenz Ø (QD1)', mean, f'{number(mean, 3)} ms', 2, 0.5, True)
-    row(label + ' Latenz P99 (QD1)', p99, f'{number(p99, 3)} ms', 10, 2, True)
-print('\nGrün/GUT: ≥1.000 MB/s, ≥50.000 IOPS, Ø ≤0,5 ms, P99 ≤2 ms.')
-print('Rot/SCHLECHT: <200 MB/s, <10.000 IOPS, Ø >2 ms, P99 >10 ms.')
-print('Dazwischen gelb/MITTEL. Keine Gesamtwertung; Anforderungen variieren.')
-print('\nDauerhaft bestätigtes Schreiben – 4K sequenziell, QD1, fsync nach jedem Write:')
+    row(label + ' mean latency (QD1)', mean, f'{number(mean, 3)} ms', 2, 0.5, True)
+    row(label + ' P99 latency (QD1)', p99, f'{number(p99, 3)} ms', 10, 2, True)
+print('\nGreen/GOOD: ≥1,000 MB/s, ≥50,000 IOPS, mean ≤0.5 ms, P99 ≤2 ms.')
+print('Red/POOR: <200 MB/s, <10,000 IOPS, mean >2 ms, P99 >10 ms.')
+print('Yellow/FAIR in between. No overall score; requirements vary.')
+print('\nDurable writes – 4K sequential, QD1, fsync after every write:')
 write = load('fsync', 'write')
 sync = load('fsync', 'sync')
 if sync.get('total_ios', 0) <= 0 or write.get('runtime', 0) <= 0:
-    raise SystemExit('fsync wurde nicht gemessen; keine gültige Bewertung.')
+    raise SystemExit('No fsync operations were measured; no valid rating is available.')
 cycles = sync['total_ios'] * 1000 / write['runtime']
 mean, p99 = latency(sync), latency(sync, True)
-row('Write + fsync pro Sekunde', cycles, number(cycles), 100, 1000)
-row('fsync Latenz Ø', mean, f'{number(mean, 3)} ms', 10, 1, True)
-row('fsync Latenz P99', p99, f'{number(p99, 3)} ms', 50, 5, True)
-print('fsync-Richtwerte grün: ≥1.000/s, Ø ≤1 ms, P99 ≤5 ms;')
-print('rot: <100/s, Ø >10 ms, P99 >50 ms; dazwischen gelb.')
-print('Rate zählt bestätigte Write+fsync-Zyklen; Latenzen zeigen nur fsync.')
-print('Vergleicht synchrones Schreiben, keine vollständige Datenbankleistung.')
-print('\nStabilität der Leistung in 1-Sekunden-Abschnitten:')
+row('Write + fsync per second', cycles, number(cycles), 100, 1000)
+row('fsync mean latency', mean, f'{number(mean, 3)} ms', 10, 1, True)
+row('fsync P99 latency', p99, f'{number(p99, 3)} ms', 50, 5, True)
+print('fsync guidelines, green: ≥1,000/s, mean ≤1 ms, P99 ≤5 ms;')
+print('red: <100/s, mean >10 ms, P99 >50 ms; yellow in between.')
+print('Rate counts completed write+fsync cycles; latencies cover fsync only.')
+print('Measures synchronous writes, not overall database performance.')
+print('\nPerformance stability across one-second intervals:')
 for name, direction, label in [
-    ('seqread', 'read', 'Lesen sequenziell'),
-    ('seqwrite', 'write', 'Schreiben sequenziell'),
-    ('read1', 'read', 'Lesen 4K QD1'),
-    ('write1', 'write', 'Schreiben 4K QD1'),
-    ('read32', 'read', 'Lesen 4K QD32'),
-    ('write32', 'write', 'Schreiben 4K QD32'),
+    ('seqread', 'read', 'Sequential read'),
+    ('seqwrite', 'write', 'Sequential write'),
+    ('read1', 'read', 'Read 4K QD1'),
+    ('write1', 'write', 'Write 4K QD1'),
+    ('read32', 'read', 'Read 4K QD32'),
+    ('write32', 'write', 'Write 4K QD32'),
     ('fsync', 'write', 'Write + fsync QD1'),
 ]:
     stats = load(name, direction)
     average = stats.get('bw_mean', 0)
     samples = stats.get('bw_samples', 0)
     if average <= 0 or samples < 5:
-        print(f'{label:<29} NICHT BEWERTBAR – zu wenige Messwerte')
+        print(f'{label:<29} UNAVAILABLE – insufficient samples')
         continue
     variation = 100 * stats['bw_dev'] / average
     minimum = 100 * stats['bw_min'] / average
     level = 0 if variation > 25 or minimum < 50 else (2 if variation <= 10 and minimum >= 80 else 1)
-    rating = ['UNSICHER', 'SCHWANKEND', 'STABIL'][level]
+    rating = ['UNCERTAIN', 'VARIABLE', 'STABLE'][level]
     text = (f'{label:<29} {rating:<11} '
-            f'Streuung {number(variation, 1)} % · Minimum {number(minimum, 0)} % vom Ø')
+            f'Variation {number(variation, 1)}% · Minimum {number(minimum, 0)}% of mean')
     print(f'\033[{[31, 33, 32][level]}m{text}\033[0m' if color else text)
-print('Grün: Streuung ≤10 % und Minimum ≥80 % vom Mittelwert.')
-print('Rot/unsicher: Streuung >25 % oder Minimum <50 %; sonst gelb.')
-print('Streuung = Standardabweichung / Mittelwert. Richtwerte, keine Garantie.')
-print('Bei UNSICHER den Test wiederholen; kurze Einzel-Ausreißer zeigt P99.')
-print('P99: 99 % der Zugriffe innerhalb dieser Zeit. QD: parallele Anfragen.')
-print('Nur der fsync-Test bestätigt jeden Schreibzugriff dauerhaft laut Speichersystem.')
-print('Kein Stromausfalltest. Anbieter-Caches/Bursts bleiben bei Kurztests möglich.')
+print('Green: variation ≤10% and minimum ≥80% of mean.')
+print('Red/uncertain: variation >25% or minimum <50%; otherwise yellow.')
+print('Variation = standard deviation / mean. Guidelines, not guarantees.')
+print('Repeat UNCERTAIN tests. P99 describes the slower end of individual requests.')
+print('P99: 99% of requests complete within this time. QD: outstanding requests.')
+print('Only the fsync test requests durable confirmation of every write from the storage system.')
+print('Not a power-loss test. Provider caches and bursts may affect short benchmarks.')
 PY

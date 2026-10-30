@@ -1,60 +1,66 @@
 # diskspeed
 
-Kurzer Speicher-Benchmark für Ubuntu/Debian und Fedora mit farbiger Ausgabe.
-Fehlende Komponenten werden automatisch über `apt-get` bzw. `dnf` installiert
-(als root oder mit `sudo`).
+A short storage benchmark for Ubuntu/Debian and Fedora with colour-coded results.
+Missing dependencies are installed automatically using `apt-get` or `dnf`,
+as root or through `sudo`.
 
-## Herunterladen und starten
+## Download and run
 
 ```bash
 curl -fL https://raw.githubusercontent.com/kramervanessa/diskspeed/main/diskspeed.sh -o diskspeed.sh
 bash diskspeed.sh
 ```
 
-Ein anderes Laufwerk testen:
+To test another drive, specify a directory on that drive:
 
 ```bash
 bash diskspeed.sh /mnt/data
 ```
 
-## Messungen
+## Measurements
 
-- 8 GiB vollständig beschriebene Testdatei; mindestens 9 GiB freier Platz.
-- Sechs Tests mit jeweils 30 Sekunden Messung und 3 Sekunden Aufwärmen.
-- Sequenzielles Lesen/Schreiben (1 MiB, QD16).
-- Zufälliges Lesen/Schreiben (4 KiB, QD1 und QD32).
-- Zusätzlich 20 Sekunden sequenzielles 4-KiB-Schreiben mit `fsync` nach jedem Zugriff.
-- Durchsatz, IOPS, durchschnittliche Latenz und P99.
-- Stabilität anhand von Sekundenabschnitten (Streuung und Minimum).
+- An 8 GiB test file, fully written before measurement; at least 9 GiB free space required.
+- Six tests, each with 30 seconds of measurement and a 3-second warm-up.
+- Sequential reads and writes (1 MiB, QD16).
+- Random reads and writes (4 KiB, QD1 and QD32).
+- An additional 20-second sequential 4 KiB write test with `fsync` after every write.
+- Throughput, IOPS, mean latency and P99 latency.
+- Stability across one-second intervals, based on variation and minimum throughput.
 
-Dauer ungefähr 4 Minuten, abhängig von der Vorbereitung auch länger.
-Möglichst ohne andere Last und mit gleichen Einstellungen vergleichen.
+Allow approximately four minutes, or longer if preparing the test file takes more time.
+Compare machines using the same settings and as little other activity as possible.
+
+To extend the six main tests:
 
 ```bash
 SECONDS_PER_TEST=60 bash diskspeed.sh
 ```
 
-Die Option verändert die sechs Basistests; der fsync-Test bleibt bei 20 Sekunden.
-Farben erscheinen im Terminal; `NO_COLOR=1` deaktiviert sie.
+The fsync test remains at 20 seconds. Colours are enabled in terminals;
+set `NO_COLOR=1` to disable them. Output is in English, with a decimal point
+and commas as thousands separators (for example, `1,315 MB/s` and `0.391 ms`).
 
-## Bewertung und Grenzen
+## Ratings and limitations
 
-Die Farbschwellen sind grobe Richtwerte und werden in der Ausgabe erklärt.
-Es gibt keine pauschale Gesamtnote. Anbieter-Caches und kurzfristige
-Leistungsreserven können das Ergebnis beeinflussen. Der fsync-Test vergleicht
-synchrones Schreiben, nicht die gesamte Datenbankleistung; er prüft nicht,
-ob Hardware Bestätigungen bei einem echten Stromausfall einhält.
-Die fsync-Latenzen beziehen sich nur auf den Sync-Aufruf, die Rate auf bestätigte
-Write+fsync-Zyklen.
+Colour thresholds are general guidelines, explained in the output. There is no
+overall score. Provider caches and temporary performance bursts may affect results.
+The fsync test measures synchronous writes, not overall database performance.
+It does not verify whether hardware honours durability confirmations during an
+actual power failure. The fsync latency measures the sync call only; the rate
+counts completed write+fsync cycles.
 
-Das Skript verwendet ausschließlich eine eigene temporäre Testdatei im gewählten
-Zielordner. Testdatei und Ergebnisse werden bei Abschluss, Fehlern und üblichen
-Abbruchsignalen entfernt. Bei Stromausfall oder `kill -9` ist keine automatische
-Bereinigung möglich; dann kann ein `.diskspeed.*`-Ordner zurückbleiben.
+Stability is rated GOOD in green as `STABLE`, yellow as `VARIABLE`, or red as
+`UNCERTAIN`. These ratings describe variation during this run, not guaranteed
+long-term performance. P99 is the time within which 99% of requests complete.
 
-## Prüfung
+The script uses its own temporary test file in the selected directory. It removes
+the test file and measurement files on completion, errors and normal termination
+signals. Automatic cleanup is not possible after a power failure or `kill -9`;
+a `.diskspeed.*` directory may remain in those cases.
 
-Die Basistests wurden auf Ubuntu ausgeführt. Die fsync-Auswertung wurde mit einem
-kurzen lokalen fio-Lauf auf macOS geprüft. Syntax und ShellCheck sind geprüft;
-die Installationspfade für apt-get und dnf wurden simuliert getestet.
-Ein vollständiger Fedora-Lauf steht noch aus.
+## Validation
+
+The main benchmarks have been run on Ubuntu. The fsync report was checked using
+a short local fio run on macOS. Shell syntax and ShellCheck checks passed.
+The apt-get and dnf installation paths were tested with simulated package commands.
+A complete Fedora run has not yet been verified.
