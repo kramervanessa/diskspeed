@@ -82,7 +82,10 @@ a `.diskspeed.*` directory may remain in those cases.
 
 ## Validation
 
-The main benchmarks have been run on Ubuntu. The fsync report was checked using
+The main benchmarks have been run on Ubuntu. The optional short mode was also
+verified end to end on Ubuntu, including all seven workloads, fsync reporting
+and test-file cleanup (about 57 seconds including preparation in that run).
+The fsync report was checked using
 a short local fio run on macOS. Shell syntax and ShellCheck checks passed.
 The apt-get and dnf installation paths were tested with simulated package commands.
 A complete Fedora run has not yet been verified.
