@@ -17,6 +17,26 @@ To test another drive, specify a directory on that drive:
 bash diskspeed.sh /mnt/data
 ```
 
+## Optional short test
+
+```bash
+bash diskspeed.sh --short
+# Or test a specific drive:
+bash diskspeed.sh --short /mnt/data
+```
+
+The short mode runs all seven workloads with a **1 GiB** test file: six
+5-second measurements and a 5-second fsync measurement, each with a 1-second
+warm-up. Allow roughly **42 seconds plus file preparation and fio overhead**;
+dependency installation and slow storage can take longer. It requires 2 GiB
+of free space. Test files are removed as in the full test.
+
+Use this for a quick indication. The smaller file is more susceptible to caches,
+and short runs provide fewer latency and stability samples. Compare results
+using the same mode; use the full test to investigate inconsistent results.
+Running without `--short` keeps the original full test unchanged.
+Use `bash diskspeed.sh --help` to display the options.
+
 ## Measurements
 
 - An 8 GiB test file, fully written before measurement; at least 9 GiB free space required.
@@ -30,13 +50,14 @@ bash diskspeed.sh /mnt/data
 Allow approximately four minutes, or longer if preparing the test file takes more time.
 Compare machines using the same settings and as little other activity as possible.
 
-To extend the six main tests:
+To override the duration of the six main tests (in either mode):
 
 ```bash
 SECONDS_PER_TEST=60 bash diskspeed.sh
 ```
 
-The fsync test remains at 20 seconds. Colours are enabled in terminals;
+The fsync test remains at 20 seconds in full mode and 5 seconds in short mode.
+Colours are enabled in terminals;
 set `NO_COLOR=1` to disable them. Output uses English ASCII text and separate progress lines for compatibility with
 serial consoles. Numbers use a decimal point
 and commas as thousands separators (for example, `1,315 MB/s` and `0.391 ms`).

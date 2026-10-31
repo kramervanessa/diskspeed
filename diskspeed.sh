@@ -1,11 +1,53 @@
 #!/usr/bin/env bash
 # Missing dependencies are installed automatically on Ubuntu/Debian and Fedora.
-# Usage: ./diskspeed.sh [target-directory]
+# Usage: ./diskspeed.sh [--short] [target-directory]
 # Optional: SECONDS_PER_TEST=60 ./diskspeed.sh /mnt/data
 set -Eeuo pipefail
 
-target=${1:-.}
-duration=${SECONDS_PER_TEST:-30}
+usage() {
+  printf 'Usage: %s [--short] [target-directory]\n' "${0##*/}"
+  printf '  --short  1 GiB file, 6 x 5 s tests, 5 s fsync, 1 s warm-ups\n'
+  printf '  Default  8 GiB file, 6 x 30 s tests, 20 s fsync, 3 s warm-ups\n'
+  printf 'SECONDS_PER_TEST overrides the six main test durations in either mode.\n'
+}
+short=0
+target=.
+target_set=0
+while (( $# )); do
+  case $1 in
+    --short) short=1 ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+    *)
+      if (( target_set )); then
+        echo 'Specify only one target directory.' >&2; exit 1
+      fi
+      target=$1; target_set=1 ;;
+  esac
+  shift
+done
+if (( $# )); then
+  if (( target_set || $# > 1 )); then
+    echo 'Specify only one target directory.' >&2; exit 1
+  fi
+  target=$1
+fi
+size=8G
+size_gib=8
+required_kib=9437184
+default_duration=30
+warmup=3
+fsync_duration=20
+if (( short )); then
+  size=1G
+  size_gib=1
+  required_kib=2097152
+  default_duration=5
+  warmup=1
+  fsync_duration=5
+fi
+duration=${SECONDS_PER_TEST:-$default_duration}
 if [[ ! $duration =~ ^[0-9]+$ ]] || (( duration < 5 || duration > 600 )); then
   echo 'SECONDS_PER_TEST must be between 5 and 600.' >&2
   exit 1
@@ -64,8 +106,8 @@ if [[ ! -d $target || ! -w $target ]]; then
 fi
 target=$(cd -- "$target" && pwd -P)
 available=$(df -Pk -- "$target" | awk 'END {print $4}')
-if [[ ! $available =~ ^[0-9]+$ ]] || (( available < 9437184 )); then
-  echo 'At least 9 GiB of free space is required.' >&2
+if [[ ! $available =~ ^[0-9]+$ ]] || (( available < required_kib )); then
+  printf 'At least %s GiB of free space is required.\n' "$((size_gib + 1))" >&2
   exit 1
 fi
 
@@ -91,7 +133,12 @@ if [[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
 fi
 
 printf 'Quick disk benchmark | %s\nTarget: %s\n' "$(hostname)" "$target"
-printf '8 GiB test file | 6 tests of %s s (+ 3 s warm-up each) | additional 20 s fsync test\n' "$duration"
+printf '%s GiB test file | 6 tests of %s s (+ %s s warm-up each) | additional %s s fsync test\n' \
+  "$size_gib" "$duration" "$warmup" "$fsync_duration"
+if (( short )); then
+  printf 'SHORT mode: roughly 42 s plus preparation/overhead with default settings.\n'
+  printf 'Quick indication only: smaller file and fewer samples; compare identical modes.\n'
+fi
 
 run_fio() {
   local name=$1 mode=$2 block=$3 depth=$4
@@ -101,7 +148,7 @@ run_fio() {
     engine=psync
     direct=0
   fi
-  if ! fio --name="$name" --filename="$testdir/data" --size=8G \
+  if ! fio --name="$name" --filename="$testdir/data" --size="$size" \
       --rw="$mode" --bs="$block" --ioengine="$engine" --direct="$direct" \
       --iodepth="$depth" --numjobs=1 --refill_buffers=1 \
       --group_reporting --lat_percentiles=1 --percentile_list=99 \
@@ -122,11 +169,11 @@ for spec in 'seqread read 1M 16' 'seqwrite write 1M 16' \
   read -r name mode block depth <<< "$spec"
   printf '  Running %-9s ...\n' "$name"
   run_fio "$name" "$mode" "$block" "$depth" \
-    --runtime="$duration" --time_based --ramp_time=3 --bwavgtime=1000
+    --runtime="$duration" --time_based --ramp_time="$warmup" --bwavgtime=1000
 done
 printf '  Running fsync     ...\n'
 run_fio fsync write 4k 1 --fsync=1 --end_fsync=1 \
-  --runtime=20 --time_based --ramp_time=3 --bwavgtime=1000
+  --runtime="$fsync_duration" --time_based --ramp_time="$warmup" --bwavgtime=1000
 printf '\n'
 
 python3 - "$testdir" <<'PY'
